@@ -1,0 +1,105 @@
+##### 1. Random Forest
+model_rf = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=8,
+    min_samples_split=5,
+    min_samples_leaf=5,
+    n_jobs=-1
+)
+model_rf.fit(train_f, train_l)
+feat_imp = model_rf.feature_importances_
+top_feat_imp = pd.concat([pd.DataFrame(list(train_f.columns.values)),pd.DataFrame(feat_imp)], axis=1)
+top_feat_imp.columns = ['feature', 'importance']
+top_feat_imp_1 = top_feat_imp.sort_values(by=['importance'], ascending=False, axis=0)
+rf_pred = model_rf.predict_proba(test_f)
+predict=pd.DataFrame(rf_pred)[0]
+#объединяем вместе с настоящими labels
+all_d = pd.concat([pd.DataFrame(test_labels),predict], axis=1)
+#сортируем по вероятности
+all_d = all_d.sort_values(by='probability',ascending =False)
+#находим сколько строчек первых берём(10% от всех)
+size_cut = round(len(all_d)*0.1)
+#берём первые size_cut строчек
+top_d = all_d.head(size_cut)
+
+##### 2. Catboost
+from catboost import CatBoostClassifier
+# specify the training parameters 
+cat_model = CatBoostClassifier(iterations=10, depth=4, learning_rate=1, random_seed = 23,
+                               custom_metric='AUC',
+                               #loss_function='Logloss',
+                               logging_level='Verbose')
+#train the model
+cat_model.fit(train_features, train_labels, cat_features=categorical_features_indices, eval_set=(val_features, val_labels),
+             use_best_model=True)
+preds_proba  = cat_model.predict_proba(test_features)
+cat_model.get_params()
+
+##### 3. LogisticRegression
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.model_selection import StratifiedKFold
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=17)
+c_values = np.logspace(0, 3, 5000)
+logit_searcher = LogisticRegressionCV(Cs=c_values, cv=skf, verbose=1, n_jobs=-1)
+logit_searcher.fit(train_features_a1, train_labels_a1)
+print(logit_searcher.score(test_features_a1, test_labels_a1))
+from sklearn.model_selection import GridSearchCV
+grid_param = {
+        'solver' : ['newton-cg', 'lbfgs'],
+        #'penalty': ['l2'],
+        'C' : np.logspace(0, 3, 50),
+        'class_weight': [
+            None,
+            'balanced',
+            {0:0.3, 1:0.7},
+            {0:0.2, 1:0.8},
+            {0:0.1, 1:0.9},
+            {0:0.05, 1:0.95},
+            {0:0.01, 1:0.99}
+        ]
+    }
+
+clf = LogisticRegression(random_state=777, max_iter=10000, n_jobs=-1, penalty="l2", dual=False)
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=17)
+gs = GridSearchCV(clf, grid_param, scoring='roc_auc', cv=skf)
+gs.fit(train_features_a1, train_labels_a1)
+print ('gs.best_score_:', gs.best_score_)
+print ('gs.best_params_:', gs.best_params_)
+
+##### 5. XGBoost
+model_xgb = xgb.XGBClassifier(max_depth=3,
+                        learning_rate=0.1,
+                        n_estimators=1000,
+                        silent=True,
+                        objective='binary:logistic',
+                        booster='gbtree',
+                        n_jobs=-1)
+xgb_param = model_xgb.get_xgb_params()
+cvresult = xgb.cv(model_xgb.get_xgb_params(), #xgb_param,
+                  dtrain,
+                  num_boost_round=model_xgb.get_params()['n_estimators'],
+                  nfold=5,
+                  metrics='auc',
+                  early_stopping_rounds=50)   
+model_xgb.set_params(n_estimators=cvresult.shape[0])
+param_test1 = {
+ 'max_depth': [3,5,7,9,12], #range(3,10,2),
+ 'min_child_weight': [1,3,5,7]
+}
+
+model1 = xgb.XGBClassifier( learning_rate =0.1, n_estimators=100, max_depth=5,
+ min_child_weight=1, gamma=0, subsample=0.8, colsample_bytree=0.8,
+ objective= 'binary:logistic', nthread=4, scale_pos_weight=1, seed=27)
+
+
+gsearch1 = GridSearchCV(estimator = model1,
+                        param_grid = param_test1,
+                        scoring='roc_auc',
+                        n_jobs=-1,
+                        iid=False,
+                        cv=5)
+
+gsearch1.fit(X_train, y_train)
+model.fit(X_train, y_train, eval_metric="logloss", eval_set=eval_set, verbose=True)
+# make predictions for test data
+y_pred = model.predict(X_val)
