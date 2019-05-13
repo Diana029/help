@@ -1,0 +1,106 @@
+#####1. Stratified K folds
+scaler = StandardScaler()
+model_rf = RandomForestClassifier(n_estimators=100)
+model_lr = LogisticRegression()
+model_svm = LinearSVC()
+model_t = DecisionTreeClassifier()
+model_gb = GradientBoostingClassifier(n_estimators=100)
+pipeline_svm = make_pipeline(scaler, model_svm) # создаем pipeline - цепочку процессов преобразования 
+pipeline_lr = make_pipeline(scaler, model_lr)
+
+clfs = [
+    ['DTree', model_t],
+    ['LR', model_lr],
+    ['LR_scalled', pipeline_lr],
+    ['Linear_SVM', model_svm],
+    ['SVM_scalled', pipeline_svm],
+    ['RF', model_rf],
+    ['GB', model_gb],
+]
+
+Kf = StratifiedKFold(train_labels, n_folds=5, shuffle=True, random_state=2) # Разбиение на 3 фолда со стратификацией (сохранением соотношения классов)
+
+#tuning by lift
+def show_cv_lift(clf_i, name, f, l, cv, score=lift_scorer, param=None, vbs=False):
+    if param: 
+        grid_cv = GridSearchCV(
+            clf_i,
+            param,
+            scoring=score,
+            cv=cv,
+            verbose=vbs,
+            n_jobs=-1,
+            set_seed=32
+        )
+        grid_cv.fit(f, l)
+        clf_i = grid_cv.best_estimator_
+        print(grid_cv.best_params_)
+    score = cross_val_score(clf_i,f,l,cv=cv, scoring=score, n_jobs=-1)
+    print(name, score.mean(), score) 
+
+%%time
+for name, cl in clfs:
+    show_cv_lift(cl, name, train_features, train_labels, cv=Kf, score=lift_scorer, param=None, vbs=False)
+
+##### 2. Time Based by hands folds
+cossval_res = pd.DataFrame(columns=['fold_name','train_auc','val_auc',])
+#для каждого фолда обучаем и записываем результаты
+for fold_name in list_folds:
+    data_fold = pd.read_sql("SELECT * FROM kogay.di.credit_20180206 where fold = '"+fold_name+"'", cl_cn)
+    data = DataFrameImputer().fit_transform(data_fold)
+    df=data.drop(['fold'],axis=1)
+    
+    #### Обработка категориальных фич
+    cat_cols = df.columns[df.columns.str.contains('_cat')].tolist()
+    for item in cat_cols:
+        df[item] = df[item].astype("category").cat.codes +1
+           
+    ## 3. Процедура обучения моделей
+    ### 3.1. Разбиваем выборку на обучающую и валидационную + выделяем новые данные
+    df_train = df[df['tp'] == 'train'].drop(['tp'], axis = 1).copy()
+    df_test = df[df['tp'] == 'test'].drop(['tp'], axis = 1).copy()
+    X_train = df_train.drop(['LABEL', 'id_date', 'inn'],axis=1)
+    y_train = df_train['LABEL']
+    X_test = df_test.drop(['LABEL', 'id_date', 'inn'],axis=1)
+    y_test = df_test['LABEL']
+    
+    ### Обучим модель
+    mdl = lgb.LGBMClassifier(boosting_type= 'gbdt',
+                      objective = 'binary',            
+                      n_jobs = 7)
+    mdl.fit(X_train, y_train)
+    
+    #смотрим accuracy на train
+    pred_tr = mdl.predict_proba(X_train)
+    auc_tr = roc_auc_score(y_train, pred_tr[:,1])
+    #print(cross_val_score(mdl, X_train, y_train, cv=5, n_jobs=7))
+    #np.mean(cross_val_score(mdl, X_train, y_train, cv=5))
+    
+    #смотрим accuracy на test
+    pred_test = mdl.predict_proba(X_test)
+    auc_test = roc_auc_score(y_test, pred_test[:,1])
+    fold_info = {'fold_name': fold_name, 'train_auc':auc_tr, 'val_auc':auc_test}
+    cossval_res = cossval_res.append(fold_info, ignore_index=True)
+    del data_fold,data,df
+    gc.collect()
+
+##### 3. LGB cross val results
+%%time
+model_lgb = lgb.LGBMClassifier(boosting_type= 'gbdt',
+          objective = 'binary',
+          n_jobs = 7,
+          learning_rate=0.05,                     
+          max_depth=6,
+          min_data_in_leaf=2,                   
+          n_estimators=60,
+          num_leaves=4,
+          random_state=5
+          ,max_bin=7
+          )
+print(cross_val_score(mdl, X_train, y_train, cv=5, n_jobs=7))
+print(np.mean(cross_val_score(mdl, X_train, y_train, cv=5)))
+#смотрим на валидации
+model_lgb.fit(X_train, y_train)
+pred_test = model_lgb.predict_proba(X_test)[:,1]
+auc_test = roc_auc_score(y_test, pred_test)
+print(auc_test)
