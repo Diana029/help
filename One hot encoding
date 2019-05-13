@@ -1,0 +1,36 @@
+##### 1.One hot encoding manually(top 20 + others)
+#top_n -- сколько уникальных значений для категориальной переменной оставляем, а остальные заменяем на others
+#ds - датасет
+def one_hot_encoding(top_n,ds):
+    #находим названия категориальных признаков
+    cat_columns = ds.columns[ds.columns.str.contains('_cat')]
+    #выделяем из них subset
+    df_object = ds[cat_columns].copy()
+    #находим кол-во уникальных значений для каждого категориального столбца
+    cnt_nun_cat = df_object.apply(pd.Series.nunique)
+    #находим те категориальные признаки, где уникальных значений слишком много
+    list_long_cat = cnt_nun_cat[cnt_nun_cat > top_n]
+    #находим названия этих столбцов
+    list_long_cat_indx = list_long_cat.index
+    #для этих столбцов делаем следующее:
+    for i in list_long_cat_indx:
+        #находим чаще встречающиеся значения в этих столбцах(сами отсортированы по убыванию)
+        vals = ds[i].value_counts()
+        #обрезаем top_n сверху уникальных значений
+        vals_head = vals.head(top_n)
+        #остальные все значения заменяем на 'others'
+        ds.loc[~ds[i].isin(vals_head.index.tolist()), i] = 'others'
+    #делаем one hot encoding
+    df_object_1 = ds[cat_columns].copy()
+    df_cat = pd.get_dummies(df_object_1, drop_first= True)
+    #находим некатегориальные признаки
+    not_cat_columns = ds.columns[~ds.columns.str.contains('_cat')]
+    result = pd.concat([ds[not_cat_columns], df_cat], axis=1)
+    return result
+
+
+df = one_hot_encoding(20, dataset)
+
+##### 2.One hot encoding basical
+df_cat = pd.get_dummies(df_object_1, drop_first= True)
+
