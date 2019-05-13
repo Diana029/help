@@ -50,3 +50,25 @@ plt.figure(figsize=(15,6))
 plt.suptitle("limit, log10 scale",fontsize=20)
 sns.kdeplot(np.log10(X_train.limit[y_train==1]), label='credit', shade=True)
 sns.kdeplot(np.log10(X_train.limit[y_train==0]), label='not credit', shade=True); 
+
+
+##### 7. Строим функции плотности вероятности для признаков и смотрим на распределения
+df.columns.values
+plot_features = ['cnt_prd', 'NO_NDS_SUM_p', 'pa10', 'pa8', 'cnt_client_mng']
+X_y = pd.concat((df[plot_features], df['LABEL']), axis=1)
+new_palette = sns.color_palette("Paired")
+sns.pairplot(X_y, vars=plot_features, hue="LABEL", 
+             size=3, diag_kind="kde");
+
+
+##### 8. Строим функции плотности вероятности (и гистограммы) для признаков и смотрим на распределения
+plot_features = ['cnt_prd', 'NO_NDS_SUM_p', 'pa10', 'pa8', 'cnt_client_mng']
+plt.figure(figsize=(10,20))
+grids = gridspec.GridSpec(len(plot_features),1)
+for i,j in enumerate(df[plot_features]):
+    ax = plt.subplot(grids[i])
+    sns.distplot(df[j][df.LABEL == 0], bins=30)
+    sns.distplot(df[j][df.LABEL == 1], bins=30)
+    ax.set_xlabel('')
+    ax.set_title('Histogram for feature: ' + str(j))
+plt.show()
