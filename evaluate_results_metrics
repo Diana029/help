@@ -1,0 +1,10 @@
+##### 1. Metrics(precision, recall, fscore, support)
+from sklearn.metrics import precision_recall_fscore_support as score
+precision, recall, fscore, support = score(y_test, predicted)
+print('precision: {}'.format(precision))
+print('recall: {}'.format(recall))
+print('fscore: {}'.format(fscore))
+print('support: {}'.format(support))
+
+##### 2. Metrics(gini)
+gini = (acc*2-1)*100
