@@ -1,0 +1,40 @@
+#######1.Random forest
+X_1 = X
+X_1['type'] = 1
+X_new_data_1 = X_newdata
+X_new_data_1['type'] = 0
+#Объединяем train и test
+X_all=pd.concat([X_1,X_new_data_1], axis=0)
+X_all_type = X_all['type']
+X_all_type_1 = pd.DataFrame(X_all_type).sort_index(axis=0)
+X_all_without_type = X_all.loc[:, X_all.columns != 'type']
+X_all_without_type = X_all_without_type.sort_index(axis=0)
+#обработка категориальных фич
+cat_cols_newd = X_all_without_type.columns[X_all_without_type.columns.str.contains('_cat')].tolist()
+for item in cat_cols_newd:
+    X_all_without_type[item] = X_all_without_type[item].astype("category").cat.codes +1
+X_all_without_type_1 = data_preprocess(X_all_without_type)
+
+def show_cv(clf_i, name, f, l, cv, score='roc_auc', param=None, vbs=False):
+    if param: 
+        grid_cv = GridSearchCV(
+            clf_i,
+            param,
+            scoring=score,
+            cv=cv,
+            verbose=vbs,
+            n_jobs=-1
+        )
+        grid_cv.fit(f, l)
+        clf_i = grid_cv.best_estimator_
+        print(grid_cv.best_params_)
+    res_score = cross_val_score(clf_i,f,l,cv=cv, scoring=score, n_jobs=-1)
+    print(name, res_score.mean(), res_score)
+model_rf = RandomForestClassifier(n_estimators=100)
+clfs = [
+    ['RF', model_rf]
+]
+Kf = StratifiedKFold(X_all_type, n_folds=5, shuffle=True, random_state=20) # Разбиение на 5 фолдов со стратификацией (сохранением соотношения классов)
+for name, cl in clfs:
+    show_cv(cl, name, X_all_without_type_1, X_all_type, cv=Kf)
+
