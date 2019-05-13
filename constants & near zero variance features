@@ -1,0 +1,12 @@
+##### 6. Check and Remove Constant Features
+df = data.loc[:,data.apply(pd.Series.nunique) != 1]
+
+##### 7. Смотрим есть ли фичи с NearZeroVariance c порогом (берём только те, у которых в столбцах не одинаковые значения)
+from sklearn.feature_selection import VarianceThreshold
+def variance_threshold_selector(data, threshold):
+    selector = VarianceThreshold(threshold)
+    selector.fit(data)
+    return data[data.columns[selector.get_support(indices=True)]]
+X_tr = variance_threshold_selector(X, 0.0)
+
+
