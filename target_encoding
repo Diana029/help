@@ -1,0 +1,36 @@
+------- target encoding v1 --------------------------------------------------------	
+	
+	n_fold = 3
+	folds = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=42)
+	cat_columns = df.columns[df.columns.str.contains('_cat')].tolist()
+	
+	def target_encoding_coursera(df = df, cat_columns = cat_columns):
+	df_new = pd.DataFrame()
+	for train_index, val_index in folds.split(df, df['LABEL']):
+	X_train, X_val = df.loc[train_index], df.loc[val_index]
+	for col in cat_columns:
+	means = X_val[col].map(X_train.groupby(col).LABEL.mean())
+	X_val[col + '_mean_target'] = means
+	df_new = df_new.append(X_val)
+	df_new.drop(cat_columns, axis = 1, inplace = True)
+	return df_new 
+	
+	
+	------- target encoding v2 -------------------------------------------------------- 
+	# version of https://maxhalford.github.io/blog/target-encoding-done-the-right-way/
+	cat_columns = df.columns[df.columns.str.contains('_cat')].tolist()
+	def target_encoding_kaggle(df = df, cat_columns = cat_columns, on = 'LABEL', m = 10):
+	df_new = df.copy()
+	mean = df[on].mean() # Compute the global mean
+	for col in cat_columns:
+	# Compute the number of values and the mean of each group
+	agg = df.groupby(col)[on].agg(['count', 'mean'])
+	counts = agg['count']
+	means = agg['mean']
+	
+	# Compute the "smoothed" means
+	smooth = (counts * means + m * mean) / (counts + m)
+	# Replace each value by the according smoothed mean
+	df_new[col + '_smooth_mean_target'] = df_new[col].map(smooth)
+	df_new.drop(cat_columns, axis = 1, inplace = True)
+	return df_new 
