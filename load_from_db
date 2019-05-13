@@ -1,0 +1,6 @@
+import pyodbc 
+server = 'server_name' 
+#database = 'scheme_name' 
+#cn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';DATABASE='+database+';')
+cn = pyodbc.connect('DRIVER={SQL Server};SERVER='+server+';')
+data = pd.read_sql('SELECT * FROM ##table', cn)
