@@ -1,0 +1,80 @@
+##### 1.replace NaN values
+df = df.fillna(data.mean())
+
+from sklearn.preprocessing import Imputer
+imp = Imputer(missing_values='NaN', strategy='most_frequent', axis=1)
+# Impute our data, then train
+df_a2_imp = imp.fit_transform(df_a2)
+imp1 = Imputer(missing_values='NaN', strategy='median', axis=1)
+df_a4 = df_a4.fillna(-1)
+
+
+##### 4.preprocess missing values
+from sklearn.base import TransformerMixin
+class DataFrameImputer(TransformerMixin):
+    def __init__(self):
+        """Impute missing values.
+        Columns of dtype object are imputed with the most frequent value 
+        in column.
+        Columns of other types are imputed with mean of column.
+        """
+    def fit(self, X, y=None):
+        self.fill = pd.Series([X[c].value_counts().index[0]
+            if X[c].dtype == np.dtype('O') else X[c].mean() for c in X],
+            index=X.columns)
+        return self
+    def transform(self, X, y=None):
+        return X.fillna(self.fill)
+
+##### 5. Preprocessing categorical features by catboost
+categorical_feats = [
+    f for f in df.columns if df[f].dtype == 'object'
+]
+for header in categorical_feats:
+    if header!= 'inn' and header!= 'id_date' and header!= 'LABEL':
+        df[header] = df[header].astype('category').cat.codes
+
+
+##### 7. preprocess missing values(for regression)
+from sklearn.base import TransformerMixin
+class DataFrameImputer(TransformerMixin):
+
+    def __init__(self):
+        """Impute missing values.
+
+        Columns of dtype object are imputed as is_na.
+        If cat_type = 'most_frequent'
+        than impute with the most frequent value 
+        in column.
+
+        Columns of other types are imputed with mean of column.
+        If model_type == 'linear' - create column named _is_na
+
+        """
+    def fit(self, X, y=None, cat_type = 'is_na', model_type = 'gbm'):
+        if cat_type == 'is_na'  and model_type == 'gbm':
+            self.fill = pd.Series(['is_na'
+            if X[c].dtype == np.dtype('O') else X[c].max()*2 for c in X],
+            index=X.columns)
+        if cat_type == 'most_frequent' and model_type == 'gbm':
+            self.fill = pd.Series([X[c].value_counts().index[0]
+            if X[c].dtype == np.dtype('O') else X[c].max()*2 for c in X],
+            index=X.columns)
+        if cat_type == 'is_na'  and model_type == 'linear':
+            self.fill = pd.Series(['is_na'
+            if X[c].dtype == np.dtype('O') else X[c].mean() for c in X],
+            index=X.columns)     
+        if cat_type == 'most_frequent' and model_type == 'linear':
+            self.fill = pd.Series([X[c].value_counts().index[0]
+            if X[c].dtype == np.dtype('O') else X[c].mean() for c in X],
+            index=X.columns)        
+        return self
+
+    def transform(self, X, y=None, cat_type = 'is_na', model_type = 'gbm'):
+        if model_type == 'gbm':
+            Q = X.fillna(self.fill)
+        if model_type == 'linear':
+            for col in X.columns[X.isnull().any()]:
+                X[col + '_is_na'] = X.loc[:,col].isna()*1
+            Q = X.fillna(self.fill)    
+        return Q
