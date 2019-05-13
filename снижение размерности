@@ -1,0 +1,22 @@
+##### 6. Снижение размерности by max объяснённой variance
+from numpy.linalg import eig
+for f in df.columns:
+    if df[f].dtype == 'object':
+        print(f)
+X_1 = X.ix[:, X.columns != "inn"]
+#Estimate a covariance matrix, given data and weights.
+covX = np.cov(X_1.T)
+eigs, vecs = eig(covX)
+eig_pairs = [(abs(eigs[i]),vecs[:,i]) for i in range(len(eigs))]
+eig_pairs.sort(key = lambda x: x[0], reverse= True)
+E = sum(eigs)
+exp_variance = [(i/E)*100 for i in sorted(eigs, reverse=True)] # Individual explained variance
+cum_variance = np.cumsum(exp_variance) # Cumulative explained variance
+plt.figure(figsize=(10,7))
+plt.bar(range(len(eigs)), exp_variance, alpha=0.8, label='Variance of individual PC, %', color = 'r')
+plt.step(range(len(eigs)), cum_variance, label='Cumulative variance, %')
+plt.ylabel('Total variance %')
+plt.xlabel('Number of principal components')
+plt.xlim(0,7)
+plt.legend()
+plt.show()
