@@ -1,0 +1,52 @@
+##### 1. Distribution of forecasted values
+with plt.xkcd():
+    plt.hist(pred_val[:,1], bins = 20);
+    #plt.scatter(x = np.linspace(0.3, 0.3, 16), y = np.linspace(0,200,16), c = 'r')
+    plt.show()
+    
+##### 2. Графики facet для каждой пары строка+столбец
+grid_cr = sns.FacetGrid(data_payments_cred, row='inn', col="type_pay", palette="Set3", size=4, aspect=2)
+grid_cr = grid_cr.map(sns.barplot, 'id_date', 'summ')
+grid_cr.set_xticklabels(rotation=30)
+
+##### 3. histograms for list of features
+plt.figure(figsize=(10,30))
+plot_features_corr = corr_array[:,1][:top_correlations]
+grids = gridspec.GridSpec(len(plot_features_corr),1)
+for i,j in enumerate(df[plot_features_corr]):
+    ax = plt.subplot(grids[i])
+    sns.distplot(df[j][data.LABEL == 0], bins=30)
+    sns.distplot(df[j][data.LABEL == 1], bins=30)
+    ax.set_xlabel('')
+    #ax.set_xlim(-2,2)
+    ax.set_title('Histogram for feature: ' + str(j))
+plt.show()
+
+
+##### 4. Plot Decision Tree
+base_model = DecisionTreeClassifier()
+base_model.fit(train_features, train_labels) 
+# используем .dot формат для визуализации дерева
+from sklearn.tree import export_graphviz
+export_graphviz(base_model, feature_names= df_train.loc[:, df_train.columns != 'LABEL'].columns.tolist(), 
+                out_file='small_tree.dot', filled=True)
+!dot -Tpng ../../img/small_tree.dot -o ../../img/small_tree.png
+!rm ../../img/small_tree.dot 
+
+##### 5. Plot Features Importance
+feature_names = X.columns
+importances = base_model.feature_importances_
+indices = np.argsort(importances)[::-1] 
+d_first = 30
+plt.figure(figsize=(7,7))
+plt.title("Feature importances")
+plt.bar(range(d_first), importances[indices[:d_first]], align='center')
+plt.xticks(range(d_first), np.array(feature_names)[indices[:d_first]], rotation=90)
+plt.xlim([-1, d_first]); 
+
+##### 6. Распределение фичей
+import seaborn as sns
+plt.figure(figsize=(15,6))
+plt.suptitle("limit, log10 scale",fontsize=20)
+sns.kdeplot(np.log10(X_train.limit[y_train==1]), label='credit', shade=True)
+sns.kdeplot(np.log10(X_train.limit[y_train==0]), label='not credit', shade=True); 
