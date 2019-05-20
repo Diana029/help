@@ -1,0 +1,13 @@
+# visualize the distribution of each numerical feature
+temp = pd.melt(df.drop('SalePrice',axis=1), value_vars=quan)
+grid = sns.FacetGrid(temp, col="variable",  col_wrap=6 , size=3.0, 
+                     aspect=0.8,sharex=False, sharey=False)
+grid.map(sns.distplot, "value")
+plt.show()
+
+# scatter plots
+temp = pd.melt(df, id_vars=['SalePrice'],value_vars=quan)
+grid = sns.FacetGrid(temp, col="variable",  col_wrap=4 , size=3.0, 
+                     aspect=1.2,sharex=False, sharey=False)
+grid.map(plt.scatter, "value",'SalePrice',s=1.5)
+plt.show()
