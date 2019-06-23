@@ -64,3 +64,9 @@ def comparePlot(df1, df2, col, factor=4, override=True, verbose=True, scale=0.5,
     
     
   comparePlot(df_train, df_test, 'CountryIdentifier', verbose=False, title='Test vs. Train')
+
+#взяли рандомный сабсэмпл из трейна и сравнили с тестом
+df_trainA = df_train.sample(frac=0.5)
+df_trainB = df_train[ ~df_train.index.isin(df_trainA.index)]
+comparePlot(df_trainA, df_trainB, 'CountryIdentifier', verbose=False,
+            title='Random Validation Set vs. Train Subset', lab1='Train', lab2='Validation')
