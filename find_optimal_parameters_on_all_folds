@@ -1,0 +1,59 @@
+%%time
+params = range(2,500,50)
+def find_optimal_params(params,list_folds,df_folds):
+    """функция подбора оптимальных параметров по всем фолдам"""
+    param_tune_res = pd.DataFrame(columns=['fold', 'param_value','train_auc','val_auc',])
+    for fold_name in list_folds:
+        """для каждого фолда обучаем и записываем результаты"""
+        print(fold_name)
+        data_fold = df_folds[df_folds['fold'] == fold_name]
+        df = data_fold.drop(['fold'],axis=1)
+        
+        #Разбиваем выборку на обучающую и валидационную
+        df_train = df[df['id_date'] < df['id_date'].max()].copy()
+        df_val = df[df['id_date'] == df['id_date'].max()].copy()
+        X_train = df_train.drop(['label', 'id_date', 'inn'],axis=1)
+        y_train = df_train['label']
+        X_val = df_val.drop(['label', 'id_date', 'inn'],axis=1)
+        y_val = df_val['label']
+        
+        for value_param in params:
+            print(value_param)
+            # Обучим модель
+            mdl = lgb.LGBMClassifier(boosting_type= 'gbdt',
+                          objective = 'binary', 
+                          #max_depth = 11,
+                          num_leaves = value_param,       
+                          n_jobs = cnt_jobs)
+            mdl.fit(X_train, y_train)
+            
+            #смотрим accuracy на train
+            pred_tr = mdl.predict_proba(X_train)[:,1]
+            auc_tr = roc_auc_score(y_train, pred_tr)
+            
+            #смотрим accuracy на val
+            pred_val = mdl.predict_proba(X_val)[:,1]
+            auc_val = roc_auc_score(y_val, pred_val)
+            
+            #собираем результаты
+            param_tune_info = {'fold': fold_name, 'param_value': value_param, 'train_auc':auc_tr, 'val_auc':auc_val}
+            param_tune_res = param_tune_res.append(param_tune_info, ignore_index=True)
+            #print(param_tune_info)
+    
+    #melt results for plots
+    param_tune_res_melt = pd.melt(param_tune_res, id_vars=['fold','param_value'], value_vars=['train_auc', 'val_auc'])
+    # Plot the lines on several facets
+    sns.relplot(x="param_value",
+                y="value",
+                hue="variable",
+                col="fold",
+                height=3, 
+                #aspect=.75,
+                facet_kws=dict(sharex=False),
+                kind="line", 
+                legend="full", 
+                data=param_tune_res_melt)
+        
+        
+        
+find_optimal_params(params,list_folds,df_folds)
