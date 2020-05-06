@@ -1,3 +1,4 @@
+import tqdm
 import multiprocessing
 try:
     cpus = multiprocessing.cpu_count()
@@ -29,7 +30,9 @@ import concurrent.futures
 #номер 1 по скорости
 with concurrent.futures.ProcessPoolExecutor(20) as pool:
     top10['sum_embedding_3'] = list(
+        tqdm.tqdm(
             pool.map(calculate_sum_emb, top10['normal_form'])
+        )
     )
 #CPU times: user 3.65 s, sys: 916 ms, total: 4.56 s
 #Wall time: 14.3 s
