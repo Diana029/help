@@ -104,3 +104,11 @@ model_lgb.fit(X_train, y_train)
 pred_test = model_lgb.predict_proba(X_test)[:,1]
 auc_test = roc_auc_score(y_test, pred_test)
 print(auc_test)
+
+
+##### 4. Manually devide by folds in stratified way by own column
+def add_folds(data, n_folds = 3):
+    df_folds = data.groupby(['inn', "label"]).size().to_frame("cnt").reset_index().sort_values(['label', 'cnt'], ascending=[False, False]).reset_index(drop=True).reset_index()
+    df_folds['fold_num'] = df_folds['index']%n_folds
+    data = pd.merge(data, df_folds, on=['inn', 'label']).drop(['index', 'cnt'], axis=1)
+    return data
