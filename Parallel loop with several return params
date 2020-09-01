@@ -1,0 +1,61 @@
+import tqdm
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from string import punctuation
+
+#Create lemmatizer and stopwords list
+russian_stopwords = stopwords.words("russian")
+morph = pymorphy2.MorphAnalyzer()
+
+
+def procedure(one_inn):
+print(one_inn)
+cols = ['sell_words', 'buy_words']
+for col in cols:
+one_inn_df = data_short[data_short['inn'] == one_inn]
+text_l = one_inn_df[col].tolist()
+ind = df_inn[df_inn['inn'] == one_inn].index
+cleaned_text_l = [x for x in text_l if str(x) != 'nan']
+if len(cleaned_text_l) != 0:
+text = " ".join(text_l)
+#if not str(text) == 'nan':
+tokens = word_tokenize(text.lower())
+tokens = [token for token in tokens if token not in russian_stopwords\
+and token != " " \
+and token.strip() not in punctuation]
+#приведение к нормальной форме
+tokens_nf = [morph.parse(elem)[0].normal_form for elem in tokens]
+#аггрегирование
+dd = pd.DataFrame({'words' : tokens_nf, 'cnt' : 1}).groupby('words').count().reset_index()
+#объединение в 1 столбец частоты и слова
+dd['words_freq'] = dd['words'] + ":" + dd['cnt'].astype(str)
+if col == 'sell_words':
+res_sell_words = " ".join(dd['words_freq'].tolist())
+else:
+res_buy_words = " ".join(dd['words_freq'].tolist())
+else:
+if col == 'sell_words':
+res_sell_words = ""
+else:
+res_buy_words = ""
+return one_inn, res_sell_words, res_buy_words
+
+
+def main():
+inn_l = list()
+res_sell_words_l = list()
+res_buy_words_l = list()
+with concurrent.futures.ProcessPoolExecutor(run_threds) as executor:
+for out1, out2, out3 in executor.map(procedure, inn_list):
+inn_l.append(out1)
+res_sell_words_l.append(out2)
+res_buy_words_l.append(out3)
+return inn_l, res_sell_words_l, res_buy_words_l
+
+
+%%time
+if name == '__main__':
+inn_l, res_sell_words_l, res_buy_words_l = main()
+
+%%time
+res_final = pd.DataFrame({'inn': inn_l, 'sell_words' : res_sell_words_l, 'buy_words' : res_buy_words_l})
